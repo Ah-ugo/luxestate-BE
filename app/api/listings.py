@@ -1,7 +1,7 @@
-from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Depends
+from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Depends, Form
 from typing import Optional, List
 from app.models.listing import Listing, ListingType, ListingStatus
-from app.services.cloudinary_service import upload_image
+from app.services.cloudinary_service import upload_image, delete_image
 from app.services.listing_service import (
     get_listings, get_listing_by_slug, create_listing, 
     update_listing, seed_listings
@@ -10,6 +10,7 @@ from app.core.security import get_current_active_superuser
 from app.models.user import User
 from pydantic import BaseModel
 import logging
+import json
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -123,11 +124,13 @@ async def seed_data():
 
 @router.post("/", status_code=201, response_model=Listing)
 async def add_listing(
-    listing_data: Listing,
+    listing_data: str = Form(...),
+    files: List[UploadFile] = File(None),
     current_user: User = Depends(get_current_active_superuser)
 ):
     """Admin: Create a new listing."""
-    return await create_listing(listing_data)
+    listing_dict = json.loads(listing_data)
+    return await create_listing(listing_dict, files)
 
 
 @router.put("/{listing_id}", response_model=Listing)
@@ -148,3 +151,44 @@ async def remove_listing(listing_id: str, current_user: User = Depends(get_curre
         raise HTTPException(status_code=404, detail="Listing not found")
     await listing.delete()
     return None
+
+
+@router.post("/{listing_id}/images", response_model=Listing)
+async def add_listing_images(
+    listing_id: str,
+    files: List[UploadFile] = File(...),
+    current_user: User = Depends(get_current_active_superuser)
+):
+    """Admin: Add images to an existing listing."""
+    listing = await Listing.get(listing_id)
+    if not listing:
+        raise HTTPException(status_code=404, detail="Listing not found")
+    
+    if not listing.images:
+        listing.images = []
+
+    for file in files:
+        contents = await file.read()
+        upload_result = await upload_image(contents, folder="listings")
+        image_item = {"url": upload_result["url"], "public_id": upload_result["public_id"], "alt": file.filename}
+        listing.images.append(image_item)
+    
+    await listing.save()
+    return listing
+
+
+@router.delete("/{listing_id}/images/{image_public_id:path}", response_model=Listing)
+async def delete_listing_image(
+    listing_id: str,
+    image_public_id: str,
+    current_user: User = Depends(get_current_active_superuser)
+):
+    """Admin: Delete an image from a listing."""
+    listing = await Listing.get(listing_id)
+    if not listing:
+        raise HTTPException(status_code=404, detail="Listing not found")
+
+    await delete_image(image_public_id)
+    listing.images = [img for img in listing.images if img.public_id != image_public_id]
+    await listing.save()
+    return listing

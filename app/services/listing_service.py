@@ -4,6 +4,7 @@ import math
 import base64
 import logging
 from fastapi import UploadFile
+from app.services.cloudinary_service import upload_image
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +64,7 @@ async def get_listing_by_slug(slug: str):
     return await Listing.find_one(Listing.slug == slug)
 
 
-async def create_listing(data: dict, files: list[UploadFile] = None):
+async def create_listing(data: dict, files: list[UploadFile] = []):
     """Create a new listing with image uploads"""
     listing = Listing(**data)
 
@@ -71,16 +72,13 @@ async def create_listing(data: dict, files: list[UploadFile] = None):
     if files:
         listing.images = []
         for file in files:
-            try:
-                contents = await file.read()
-                encoded_content = base64.b64encode(contents).decode("utf-8")
-                image_item = ImageItem(url=f"data:{file.content_type};base64,{encoded_content}", alt=file.filename)
-                listing.images.append(image_item)
-            except Exception as e:
-                logger.error(f"Error uploading image {file.filename}: {e}")
+            contents = await file.read()
+            upload_result = await upload_image(contents, folder="listings")
+            image_item = ImageItem(url=upload_result["url"], public_id=upload_result["public_id"], alt=file.filename)
+            listing.images.append(image_item)
 
     await listing.insert()
-    return listing.dict()
+    return listing
 
 
 async def update_listing(listing_id: str, data: dict):
