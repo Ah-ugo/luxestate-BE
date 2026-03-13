@@ -6,8 +6,8 @@ from app.core.security import create_access_token, verify_password, get_password
 from app.core.config import settings
 from app.services.email_service import send_password_reset_email
 from datetime import timedelta, datetime
-import jwt
 import logging
+from jose import jwt
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
