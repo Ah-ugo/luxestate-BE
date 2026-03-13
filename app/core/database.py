@@ -1,33 +1,18 @@
-from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
+from motor.motor_asyncio import AsyncIOMotorClient
 from app.core.config import settings
 from app.models.listing import Listing
 from app.models.booking import Booking
-from app.models.user import User
 from app.models.contact import ContactMessage
-import logging
-
-logger = logging.getLogger(__name__)
-
-client: AsyncIOMotorClient = None
-
+from app.models.user import User
 
 async def connect_db():
-    global client
     client = AsyncIOMotorClient(settings.MONGODB_URL)
-    db = client[settings.DATABASE_NAME]
+    # Initialize Beanie with all document models
     await init_beanie(
-        database=db,
-        document_models=[Listing, Booking, User, ContactMessage]
+        database=client[settings.DATABASE_NAME],
+        document_models=[Listing, Booking, ContactMessage, User]
     )
-    logger.info(f"Connected to MongoDB: {settings.DATABASE_NAME}")
-
 
 async def close_db():
-    global client
-    if client:
-        client.close()
-
-
-def get_db():
-    return client[settings.DATABASE_NAME]
+    pass
