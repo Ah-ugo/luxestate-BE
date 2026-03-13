@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 import logging
 
 from app.core.database import connect_db, close_db
-from app.api import listings, auth, contact
+from app.api import listings, auth, contact, users
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -38,6 +38,7 @@ app.add_middleware(
 app.include_router(listings.router, prefix="/api/listings", tags=["Listings"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(contact.router, prefix="/api/contact", tags=["Contact"])
+app.include_router(users.router, prefix="/api/users", tags=["Users"])
 
 
 @app.get("/")

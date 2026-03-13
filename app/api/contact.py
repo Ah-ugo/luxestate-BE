@@ -1,8 +1,10 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List, Dict, Any
 
 import logging
+from app.core.security import get_current_active_user, get_current_active_superuser
+from app.models.user import User
 router = APIRouter()
 
 
@@ -51,23 +53,23 @@ async def send_contact(data: ContactCreate):
 
 
 @router.get("/", response_model=List[Dict[str, Any]])
-async def get_all_messages():
+async def get_all_messages(current_user: User = Depends(get_current_active_superuser)):
     """Get all contact messages (Admin)"""
     from app.models.contact import ContactMessage
     messages = await ContactMessage.find_all().to_list()
     return [m.dict() for m in messages]
 
 
-@router.get("/user/{email}", response_model=List[Dict[str, Any]])
-async def get_user_messages(email: str):
-    """Get messages for a specific user"""
+@router.get("/my-requests", response_model=List[Dict[str, Any]])
+async def get_my_messages(current_user: User = Depends(get_current_active_user)):
+    """Get messages for the current user"""
     from app.models.contact import ContactMessage
-    messages = await ContactMessage.find(ContactMessage.email == email).to_list()
+    messages = await ContactMessage.find(ContactMessage.email == current_user.email).to_list()
     return [m.dict() for m in messages]
 
 
 @router.get("/stats")
-async def get_stats():
+async def get_stats(current_user: User = Depends(get_current_active_superuser)):
     """Get admin dashboard stats"""
     from app.models.contact import ContactMessage
     total_messages = await ContactMessage.find_all().count()

@@ -39,7 +39,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
+    access_token = create_access_token( # In a real app, you might add roles to the token
         data={"sub": user.email}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
@@ -124,3 +124,25 @@ async def reset_password(req: ResetPasswordRequest):
     await user.save()
 
     return {"message": "Password has been reset successfully."}
+
+
+@router.post("/seed-admin", status_code=status.HTTP_201_CREATED)
+async def seed_admin_user():
+    """Create a default admin user if one doesn't exist."""
+    admin_email = "admin@luxestate.us"
+    user_exists = await User.find_one(User.email == admin_email)
+    if user_exists:
+        raise HTTPException(
+            status_code=400,
+            detail="Admin user with this email already exists"
+        )
+    
+    admin_user = User(
+        email=admin_email,
+        hashed_password=get_password_hash("AdminPassword123!"),
+        first_name="Admin",
+        last_name="User",
+        is_superuser=True
+    )
+    await admin_user.insert()
+    return {"message": f"Admin user '{admin_email}' created successfully."}
