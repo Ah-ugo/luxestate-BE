@@ -1,41 +1,40 @@
-import aiosmtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+import asyncio
+import resend
 from app.core.config import settings
 import logging
 
 logger = logging.getLogger(__name__)
 
+resend.api_key = settings.RESEND_API_KEY
+
+
+def send_email_sync(to: str, subject: str, html: str, from_email: str):
+    """Synchronous email sending function for Resend."""
+    return resend.Emails.send({
+        "from": from_email,
+        "to": [to],
+        "subject": subject,
+        "html": html,
+    })
+
 
 async def send_email(to: str, subject: str, html: str) -> bool:
-    """Send email via SMTP"""
-    message = MIMEMultipart()
-    message["From"] = f"LuxEstate <{settings.FROM_EMAIL}>"
-    message["To"] = to
-    message["Subject"] = subject
-    message.attach(MIMEText(html, "html"))
-
+    """Send email via Resend in an async-friendly way."""
+    from_email = f"LuxEstate <{settings.FROM_EMAIL}>"
     try:
-        await aiosmtplib.send(
-            message,
-            hostname=settings.SMTP_HOST,
-            port=settings.SMTP_PORT,
-            username=settings.SMTP_USER,
-            password=settings.SMTP_PASSWORD,
-            start_tls=True,
+        loop = asyncio.get_running_loop()
+        email = await loop.run_in_executor(
+            None, send_email_sync, to, subject, html, from_email
         )
-        logger.info(f"Email sent to {to}")
+        logger.info(f"Email sent to {to} via Resend. ID: {email['id']}")
         return True
-    except aiosmtplib.SMTPException as e:
-        logger.error(f"SMTP Email error: {e.code} {e.message}")
-        return False
     except Exception as e:
-        logger.error(f"Generic Email error: {e}")
+        logger.error(f"Resend Email error: {e}")
         return False
 
 
-async def send_booking_confirmation(booking, pdf_url: str) -> bool:
-    """Send tour booking confirmation with PDF download link"""
+async def send_tour_request_acknowledgement(booking_details) -> bool:
+    """Send tour request acknowledgement to the user."""
     html = f"""
     <!DOCTYPE html>
     <html>
@@ -55,10 +54,7 @@ async def send_booking_confirmation(booking, pdf_url: str) -> bool:
         .detail-row:last-child {{ border-bottom: none; }}
         .label {{ color: #8a7a5a; }}
         .value {{ color: #e8d5a3; font-weight: 500; }}
-        .ref-badge {{ background: #c9a84c; color: #0a0a0a; padding: 8px 20px; border-radius: 4px; font-size: 18px; font-weight: 700; letter-spacing: 3px; display: inline-block; margin: 20px 0; }}
-        .cta-btn {{ display: block; background: linear-gradient(135deg, #c9a84c, #a08830); color: #0a0a0a; text-decoration: none; text-align: center; padding: 16px 32px; border-radius: 6px; font-size: 16px; font-weight: 700; letter-spacing: 2px; margin: 24px 0; }}
         .footer {{ padding: 24px 40px; text-align: center; color: #4a4a4a; font-size: 12px; border-top: 1px solid #2a2a2a; }}
-        .gold {{ color: #c9a84c; }}
       </style>
     </head>
     <body>
@@ -68,77 +64,98 @@ async def send_booking_confirmation(booking, pdf_url: str) -> bool:
           <div class="tagline">PREMIUM PROPERTY INVESTMENT</div>
         </div>
         <div class="body">
-          <div class="title">Tour Booking Confirmed ✓</div>
-          <div class="subtitle">Your tour has been successfully scheduled</div>
-          
-          <div style="text-align:center">
-            <div class="ref-badge">{booking.booking_ref}</div>
-          </div>
+          <div class="title">Tour Request Received</div>
+          <div class="subtitle">We have received your tour request and will be in touch shortly.</div>
 
           <div class="detail-card">
             <div class="detail-row">
               <span class="label">Property</span>
-              <span class="value">{booking.listing_title}</span>
-            </div>
-            <div class="detail-row">
-              <span class="label">Address</span>
-              <span class="value">{booking.listing_address}</span>
-            </div>
-            <div class="detail-row">
-              <span class="label">Tour Date</span>
-              <span class="value">{booking.tour_slot.date}</span>
-            </div>
-            <div class="detail-row">
-              <span class="label">Tour Time</span>
-              <span class="value">{booking.tour_slot.time}</span>
+              <span class="value">{booking_details.get("listing_title", "N/A")}</span>
             </div>
             <div class="detail-row">
               <span class="label">Guest Name</span>
-              <span class="value">{booking.first_name} {booking.last_name}</span>
-            </div>
-            <div class="detail-row">
-              <span class="label">Guests</span>
-              <span class="value">{booking.num_guests}</span>
-            </div>
-            <div class="detail-row">
-              <span class="label">Amount Paid</span>
-              <span class="value gold">${booking.amount_paid / 100:,.2f}</span>
+              <span class="value">{booking_details.get("name", "N/A")}</span>
             </div>
           </div>
 
           <p style="color: #8a7a5a; font-size: 14px; line-height: 1.8;">
-            Your tour registration form has been generated. Please download it below, 
-            complete any required fields, and bring it to your tour appointment. 
-            Our agent will meet you at the property.
+            Thank you for your interest. One of our luxury real estate experts will contact you within 24 hours to confirm your tour details and answer any questions you may have.
           </p>
 
-          <a href="{pdf_url}" class="cta-btn">⬇ DOWNLOAD TOUR FORM</a>
-
           <p style="color: #4a4a4a; font-size: 13px; line-height: 1.8;">
-            Need to reschedule? Contact us at least 48 hours before your tour.<br>
+            If you have any immediate questions, feel free to contact us.<br>
             📞 +1 (212) 555-0199 &nbsp;|&nbsp; 📧 concierge@luxestate.us
           </p>
         </div>
         <div class="footer">
-          © 2024 LuxEstate Properties Ltd. All rights reserved.<br>
-          1 Adeola Odeku Street, Victoria Island, Lagos, Nigeria.
+          © 2026 LuxEstate Properties Ltd. All rights reserved.<br>
+          152 West 57th St, New York, NY 10019.
         </div>
       </div>
     </body>
     </html>
     """
     return await send_email(
-        to=booking.email,
-        subject=f"✓ Tour Confirmed - {booking.booking_ref} | LuxEstate",
+        to=booking_details['email'],
+        subject=f"Tour Request Received | LuxEstate",
         html=html,
     )
 
 
+async def send_password_reset_email(to: str, reset_link: str) -> bool:
+    """Send password reset link to the user."""
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body {{ font-family: Georgia, serif; background: #0a0a0a; color: #e8d5a3; margin: 0; padding: 0; }}
+        .container {{ max-width: 600px; margin: 0 auto; background: #111111; }}
+        .header {{ background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%); padding: 40px; text-align: center; border-bottom: 1px solid #c9a84c; }}
+        .logo {{ font-size: 28px; font-weight: 300; letter-spacing: 6px; color: #c9a84c; }}
+        .body {{ padding: 40px; }}
+        .title {{ font-size: 24px; font-weight: 300; color: #e8d5a3; margin-bottom: 8px; }}
+        .subtitle {{ color: #8a7a5a; font-size: 14px; margin-bottom: 32px; }}
+        .cta-btn {{ display: block; background: linear-gradient(135deg, #c9a84c, #a08830); color: #0a0a0a; text-decoration: none; text-align: center; padding: 16px 32px; border-radius: 6px; font-size: 16px; font-weight: 700; letter-spacing: 2px; margin: 24px 0; }}
+        .footer {{ padding: 24px 40px; text-align: center; color: #4a4a4a; font-size: 12px; border-top: 1px solid #2a2a2a; }}
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <div class="logo">LUXESTATE</div>
+        </div>
+        <div class="body">
+          <div class="title">Reset Your Password</div>
+          <div class="subtitle">A password reset was requested for your account.</div>
+          <p style="color: #8a7a5a; font-size: 14px; line-height: 1.8;">
+            Please click the button below to set a new password. This link is valid for one hour.
+            If you did not request a password reset, please ignore this email.
+          </p>
+          <a href="{reset_link}" class="cta-btn">RESET PASSWORD</a>
+          <p style="color: #4a4a4a; font-size: 12px; line-height: 1.8; text-align: center;">
+            If you're having trouble, copy and paste this URL into your browser:<br>
+            <span style="color: #666;">{reset_link}</span>
+          </p>
+        </div>
+        <div class="footer">
+          © 2026 LuxEstate Properties Ltd. All rights reserved.
+        </div>
+      </div>
+    </body>
+    </html>
+    """
+    return await send_email(to=to, subject="Reset Your LuxEstate Password", html=html)
+
+
 async def send_contact_notification(message) -> bool:
     """Notify admin of new contact message"""
+    phone_str = f"<p><strong>Phone:</strong> {message.phone}</p>" if message.phone else ""
     html = f"""
     <h2>New Contact Message</h2>
     <p><strong>From:</strong> {message.name} ({message.email})</p>
+    {phone_str}
     <p><strong>Subject:</strong> {message.subject}</p>
     <p><strong>Message:</strong><br>{message.message}</p>
     """

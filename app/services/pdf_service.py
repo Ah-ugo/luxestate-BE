@@ -104,7 +104,7 @@ def generate_tour_form_pdf(booking) -> bytes:
         [
             Paragraph(booking.booking_ref, ParagraphStyle("", fontSize=18, textColor=GOLD, fontName="Helvetica-Bold")),
             Paragraph("✓ CONFIRMED", ParagraphStyle("", fontSize=10, textColor=colors.HexColor("#2ECC71"), fontName="Helvetica-Bold")),
-            Paragraph(f"₦{booking.amount_paid:,.0f}", ParagraphStyle("", fontSize=12, textColor=DARK, fontName="Helvetica-Bold")),
+            Paragraph("Request Only", ParagraphStyle("", fontSize=12, textColor=DARK, fontName="Helvetica-Bold")),
         ],
     ]
     ref_table = Table(ref_data, colWidths=[70 * mm, 50 * mm, 50 * mm])
@@ -185,7 +185,7 @@ def generate_tour_form_pdf(booking) -> bytes:
     story.append(Paragraph("4. TERMS & CONDITIONS", section_title_style))
     terms = """
     By completing this form and attending the tour, you agree to the following:
-    (a) The tour fee of ₦160,000 is non-refundable but may be applied toward the purchase or rental deposit if a transaction is completed within 30 days.
+    (a) This tour request is subject to agent confirmation and property availability.
     (b) All information provided must be accurate. LuxEstate reserves the right to cancel tours based on inaccurate information.
     (c) Photography and videography is permitted for personal reference only. Commercial use is prohibited without written consent.
     (d) LuxEstate agents reserve the right to terminate a tour if the guest violates property rules.
@@ -221,7 +221,7 @@ def generate_tour_form_pdf(booking) -> bytes:
     story.append(Spacer(1, 6 * mm))
     story.append(HRFlowable(width="100%", thickness=1, color=GOLD, spaceAfter=4 * mm))
     story.append(Paragraph(
-        "LuxEstate Properties Ltd. | 1 Adeola Odeku Street, Victoria Island, Lagos, Nigeria | +234 800 589 7837 | hello@luxestate.ng",
+        "LuxEstate Properties Ltd. | 152 West 57th St, New York, NY 10019 | +1 (212) 555-0199 | concierge@luxestate.us",
         ParagraphStyle("Footer", parent=small_style, alignment=TA_CENTER, textColor=GRAY)
     ))
 

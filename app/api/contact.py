@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
+import logging
 router = APIRouter()
 
 
@@ -12,13 +13,14 @@ class ContactCreate(BaseModel):
     subject: str
     message: str
     listing_id: Optional[str] = None
+    listing_title: Optional[str] = None
 
 
 @router.post("/")
 async def send_contact(data: ContactCreate):
     """Submit contact message"""
     from app.models.contact import ContactMessage
-    from app.services.email_service import send_contact_notification
+    from app.services.email_service import send_contact_notification, send_tour_request_acknowledgement
 
     msg = ContactMessage(
         name=data.name,
@@ -32,7 +34,41 @@ async def send_contact(data: ContactCreate):
 
     try:
         await send_contact_notification(msg)
+        
+        # If this is a tour request (has listing_id), send acknowledgement to user
+        if data.listing_id:
+            booking_details = {
+                "name": data.name,
+                "email": data.email,
+                "listing_title": data.listing_title or "Requested Property"
+            }
+            await send_tour_request_acknowledgement(booking_details)
     except Exception as e:
-        pass  # Don't fail on email error
+        # Don't fail the request if email fails, but log it
+        logging.error(f"Failed to send notification emails: {e}")
 
     return {"message": "Message sent successfully", "id": str(msg.id)}
+
+
+@router.get("/", response_model=List[Dict[str, Any]])
+async def get_all_messages():
+    """Get all contact messages (Admin)"""
+    from app.models.contact import ContactMessage
+    messages = await ContactMessage.find_all().to_list()
+    return [m.dict() for m in messages]
+
+
+@router.get("/user/{email}", response_model=List[Dict[str, Any]])
+async def get_user_messages(email: str):
+    """Get messages for a specific user"""
+    from app.models.contact import ContactMessage
+    messages = await ContactMessage.find(ContactMessage.email == email).to_list()
+    return [m.dict() for m in messages]
+
+
+@router.get("/stats")
+async def get_stats():
+    """Get admin dashboard stats"""
+    from app.models.contact import ContactMessage
+    total_messages = await ContactMessage.find_all().count()
+    return {"total_messages": total_messages}
