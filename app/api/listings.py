@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Depends
 from typing import Optional, List
 from app.models.listing import Listing, ListingType, ListingStatus
 from app.services.cloudinary_service import upload_image
@@ -6,6 +6,8 @@ from app.services.listing_service import (
     get_listings, get_listing_by_slug, create_listing, 
     update_listing, seed_listings
 )
+from app.core.security import get_current_active_superuser
+from app.models.user import User
 from pydantic import BaseModel
 import logging
 
@@ -91,10 +93,10 @@ async def get_stats():
     }
 
 
-@router.get("/{slug}")
-async def get_listing(slug: str):
+@router.get("/slug/{slug}")
+async def get_listing_by_slug_endpoint(slug: str):
     """Get single listing by slug"""
-    listing = await Listing.find_one(Listing.slug == slug)
+    listing = await get_listing_by_slug(slug)
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
     # Increment views
@@ -103,8 +105,46 @@ async def get_listing(slug: str):
     return listing.dict()
 
 
+@router.get("/{listing_id}", response_model=Listing)
+async def get_listing_by_id(listing_id: str):
+    """Get a single listing by its ID."""
+    listing = await Listing.get(listing_id)
+    if not listing:
+        raise HTTPException(status_code=404, detail="Listing not found")
+    return listing
+
+
 @router.post("/seed")
 async def seed_data():
     """Seed sample listings (dev only)"""
     count = await seed_listings()
     return {"message": f"Seeded {count} listings"}
+
+
+@router.post("/", status_code=201, response_model=Listing)
+async def add_listing(
+    listing_data: Listing,
+    current_user: User = Depends(get_current_active_superuser)
+):
+    """Admin: Create a new listing."""
+    return await create_listing(listing_data)
+
+
+@router.put("/{listing_id}", response_model=Listing)
+async def edit_listing(
+    listing_id: str,
+    listing_data: Listing,
+    current_user: User = Depends(get_current_active_superuser)
+):
+    """Admin: Update an existing listing."""
+    return await update_listing(listing_id, listing_data)
+
+
+@router.delete("/{listing_id}", status_code=204)
+async def remove_listing(listing_id: str, current_user: User = Depends(get_current_active_superuser)):
+    """Admin: Delete a listing."""
+    listing = await Listing.get(listing_id)
+    if not listing:
+        raise HTTPException(status_code=404, detail="Listing not found")
+    await listing.delete()
+    return None
