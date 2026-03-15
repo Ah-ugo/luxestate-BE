@@ -7,8 +7,7 @@ class ConnectionManager:
         # A user can have multiple connections from different tabs/devices
         self.active_connections: Dict[str, List[WebSocket]] = {}
 
-    async def connect(self, websocket: WebSocket, user_email: str):
-        await websocket.accept()
+    def connect(self, websocket: WebSocket, user_email: str):
         if user_email not in self.active_connections:
             self.active_connections[user_email] = []
         self.active_connections[user_email].append(websocket)

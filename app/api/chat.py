@@ -28,12 +28,13 @@ async def get_user_from_token(token: str):
 
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
+    await websocket.accept()
     user = await get_user_from_token(token)
     if not user:
         await websocket.close(code=1008)
         return
 
-    await manager.connect(websocket, user.email)
+    manager.connect(websocket, user.email)
     try:
         while True:
             data = await websocket.receive_text()
