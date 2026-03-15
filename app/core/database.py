@@ -11,7 +11,7 @@ async def connect_db():
     # Initialize Beanie with all document models
     await init_beanie(
         database=client[settings.DATABASE_NAME],
-        document_models=[Listing, ContactMessage, User, ChatMessage]
+        document_models=[Listing, ContactMessage, User, ChatMessage],
     )
 
 async def close_db():

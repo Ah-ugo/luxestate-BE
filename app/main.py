@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 import logging
 
 from app.core.database import connect_db, close_db
-from app.api import listings, auth, contact, users, chat
+from app.api import listings, auth, contact, users
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -49,9 +49,6 @@ async def root():
         "status": "operational",
         "docs": "/docs"
     }
-
-
-
 
 
 @app.get("/health")

@@ -97,6 +97,17 @@ async def get_user_chat_history_for_admin(user_email: str, current_user: User = 
 @router.get("/conversations")
 async def get_conversations(current_user: User = Depends(get_current_active_superuser)):
     """For admins to get a list of users they've chatted with."""
-    pipeline = [{"$match": {"recipient_email": ADMIN_RECIPIENT_ID}}, {"$group": {"_id": "$sender_email"}}]
-    user_emails = await ChatMessage.aggregate(pipeline).to_list()
-    return [item['_id'] for item in user_emails]
+    admin_emails = [u.email for u in await User.find(User.is_superuser == True).to_list()]
+    
+    # Get all users who sent a message to the admin inbox
+    users_who_sent = await ChatMessage.distinct("sender_email", {"recipient_email": ADMIN_RECIPIENT_ID})
+    
+    # Get all users an admin has sent a message to
+    users_who_received = await ChatMessage.distinct("recipient_email", {"sender_email": {"$in": admin_emails}})
+
+    all_user_emails = set(users_who_sent) | set(users_who_received)
+    
+    # Filter out the admin inbox and any potential admin-to-admin chats from the list
+    final_user_list = [email for email in all_user_emails if email != ADMIN_RECIPIENT_ID and email not in admin_emails]
+    
+    return list(set(final_user_list))
