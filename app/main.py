@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 import logging
 
 from app.core.database import connect_db, close_db
-from app.api import listings, auth, contact, users
+from app.api import listings, auth, contact, users, chat
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
