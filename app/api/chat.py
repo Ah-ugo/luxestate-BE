@@ -61,6 +61,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
                 admin_emails = [admin.email for admin in admin_users]
                 await manager.broadcast_to_admins(ws_message, admin_emails)
             
+            # Also send the message back to the sender so their UI updates
             await manager.send_personal_message(ws_message, user.email)
 
     except WebSocketDisconnect:
@@ -97,17 +98,18 @@ async def get_user_chat_history_for_admin(user_email: str, current_user: User = 
 @router.get("/conversations")
 async def get_conversations(current_user: User = Depends(get_current_active_superuser)):
     """For admins to get a list of users they've chatted with."""
-    admin_emails = [u.email for u in await User.find(User.is_superuser == True).to_list()]
-    
-    # Get all users who sent a message to the admin inbox
-    users_who_sent = await ChatMessage.distinct("sender_email", {"recipient_email": ADMIN_RECIPIENT_ID})
-    
-    # Get all users an admin has sent a message to
-    users_who_received = await ChatMessage.distinct("recipient_email", {"sender_email": {"$in": admin_emails}})
-
-    all_user_emails = set(users_who_sent) | set(users_who_received)
-    
-    # Filter out the admin inbox and any potential admin-to-admin chats from the list
-    final_user_list = [email for email in all_user_emails if email != ADMIN_RECIPIENT_ID and email not in admin_emails]
-    
-    return list(set(final_user_list))
+    # This pipeline will group messages by the non-admin participant in the conversation.
+    admin_emails = [admin.email for admin in await User.find(User.is_superuser == True).to_list()]
+    pipeline = [
+        {
+            "$group": {
+                "_id": {
+                    "$cond": [ { "$in": ["$sender_email", admin_emails] }, "$recipient_email", "$sender_email" ]
+                }
+            }
+        },
+        {"$match": {"_id": {"$nin": admin_emails + [ADMIN_RECIPIENT_ID]}}},
+        {"$group": {"_id": "$_id"}} # Distinct user emails
+    ]
+    user_emails_cursor = ChatMessage.aggregate(pipeline)
+    return [item['_id'] for item in await user_emails_cursor.to_list()]
