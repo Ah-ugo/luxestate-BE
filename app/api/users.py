@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from app.models.user import User
 from app.core.security import get_current_active_user, get_password_hash, verify_password
 from pydantic import BaseModel, EmailStr
