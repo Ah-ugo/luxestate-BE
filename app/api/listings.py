@@ -11,6 +11,8 @@ from app.models.user import User
 from pydantic import BaseModel
 import logging
 import json
+import re
+import secrets
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -161,6 +163,12 @@ async def add_listing(
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON format for amenities")
 
+    # Generate slug from title
+    slug_base = title.lower().strip()
+    slug_base = re.sub(r'[^\w\s-]', '', slug_base)
+    slug_base = re.sub(r'[\s_-]+', '-', slug_base)
+    slug = f"{slug_base}-{secrets.token_hex(2)}"
+
     listing_dict = {
         "title": title,
         "description": description,
@@ -180,9 +188,11 @@ async def add_listing(
         "tags": tags,
         "features": features,
         "amenities": amenities_list,
-        "toilets": toilets, "floor": floor, "total_floors": total_floors,
-        "year_built": year_built, "parking_spaces": parking_spaces,
+        "toilets": toilets if toilets is not None else int(bathrooms),
+        "floor": floor, "total_floors": total_floors,
+        "year_built": year_built, "parking_spaces": parking_spaces if parking_spaces is not None else 0,
         "agent_name": agent_name, "agent_phone": agent_phone,
+        "slug": slug,
     }
     return await create_listing(listing_dict, files)
 
