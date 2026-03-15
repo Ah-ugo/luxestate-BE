@@ -124,12 +124,66 @@ async def seed_data():
 
 @router.post("/", status_code=201, response_model=Listing)
 async def add_listing(
-    listing_data: str = Form(...),
+    # Listing fields from form
+    title: str = Form(...),
+    description: str = Form(...),
+    listing_type: ListingType = Form(...),
+    status: ListingStatus = Form(ListingStatus.AVAILABLE),
+    price_amount: float = Form(...),
+    price_currency: str = Form("USD"),
+    price_period: Optional[str] = Form(None),
+    bedrooms: int = Form(...),
+    bathrooms: int = Form(...),
+    size_sqm: int = Form(...),
+    location_address: str = Form(...),
+    location_city: str = Form(...),
+    location_state: str = Form(...),
+    location_neighborhood: str = Form(...),
+    is_featured: bool = Form(False),
+    tags: List[str] = Form([]),
+    features: List[str] = Form([]),
+    amenities: str = Form('[]', description='JSON string of amenities array, e.g., [{"name": "Pool", "icon": "droplet"}]'),
+    # Optional fields
+    toilets: Optional[int] = Form(None),
+    floor: Optional[int] = Form(None),
+    total_floors: Optional[int] = Form(None),
+    year_built: Optional[int] = Form(None),
+    parking_spaces: Optional[int] = Form(None),
+    agent_name: Optional[str] = Form(None),
+    agent_phone: Optional[str] = Form(None),
+    # Files
     files: List[UploadFile] = File(None),
     current_user: User = Depends(get_current_active_superuser)
 ):
-    """Admin: Create a new listing."""
-    listing_dict = json.loads(listing_data)
+    """Admin: Create a new listing using form data."""
+    try:
+        amenities_list = json.loads(amenities)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON format for amenities")
+
+    listing_dict = {
+        "title": title,
+        "description": description,
+        "listing_type": listing_type,
+        "status": status,
+        "price": {"amount": price_amount, "currency": price_currency, "period": price_period},
+        "bedrooms": bedrooms,
+        "bathrooms": bathrooms,
+        "size_sqm": size_sqm,
+        "location": {
+            "address": location_address,
+            "city": location_city,
+            "state": location_state,
+            "neighborhood": location_neighborhood,
+        },
+        "is_featured": is_featured,
+        "tags": tags,
+        "features": features,
+        "amenities": amenities_list,
+        "toilets": toilets, "floor": floor, "total_floors": total_floors,
+        "year_built": year_built, "parking_spaces": parking_spaces,
+        "agent_name": agent_name, "agent_phone": agent_phone,
+    }
     return await create_listing(listing_dict, files)
 
 
