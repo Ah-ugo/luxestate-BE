@@ -102,6 +102,46 @@ async def send_tour_request_acknowledgement(booking_details) -> bool:
     )
 
 
+async def send_booking_confirmation(booking, pdf_url: str) -> bool:
+    """Send booking confirmation with PDF link."""
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+    </head>
+    <body style="font-family: Georgia, serif; background: #0a0a0a; color: #e8d5a3; margin: 0; padding: 40px;">
+      <div style="max-width: 600px; margin: 0 auto; background: #111111; padding: 40px; border: 1px solid #2a2a2a;">
+        <h1 style="color: #c9a84c; text-align: center; letter-spacing: 4px; font-weight: 300;">LUXESTATE</h1>
+        <hr style="border: 0; border-top: 1px solid #c9a84c; margin: 20px 0;">
+        
+        <h2 style="font-weight: 300; margin-bottom: 10px;">Booking Confirmed</h2>
+        <p style="color: #8a7a5a; font-size: 14px;">Reference: <strong style="color: #e8d5a3;">{booking.booking_ref}</strong></p>
+        
+        <p style="line-height: 1.6; color: #ccc;">
+          Dear {booking.first_name},<br><br>
+          Your private tour for <strong>{booking.listing_title}</strong> has been confirmed.
+          Please download your tour registration form below and bring it to your appointment.
+        </p>
+
+        <div style="text-align: center; margin: 40px 0;">
+          <a href="{pdf_url}" style="background: #c9a84c; color: #000; text-decoration: none; padding: 15px 30px; font-weight: bold; letter-spacing: 1px;">DOWNLOAD TOUR FORM</a>
+        </div>
+
+        <p style="font-size: 12px; color: #666; text-align: center; margin-top: 40px;">
+          © 2026 LuxEstate Properties Ltd.
+        </p>
+      </div>
+    </body>
+    </html>
+    """
+    return await send_email(
+        to=booking.email,
+        subject=f"Tour Confirmed: {booking.booking_ref}",
+        html=html
+    )
+
+
 async def send_password_reset_email(to: str, reset_link: str) -> bool:
     """Send password reset link to the user."""
     html = f"""
