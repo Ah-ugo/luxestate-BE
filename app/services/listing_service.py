@@ -86,7 +86,16 @@ async def update_listing(listing_id: str, data: dict):
     if not listing:
         return None
     for key, value in data.items():
-        setattr(listing, key, value)
+        if value is not None:
+            # Handle nested updates for location and price if they are dicts
+            if key in ["location", "price", "service_charge"] and isinstance(value, dict):
+                current_val = getattr(listing, key)
+                if current_val:
+                    # Update existing model with new values
+                    updated_val = current_val.copy(update=value)
+                    setattr(listing, key, updated_val)
+                    continue
+            setattr(listing, key, value)
     await listing.save()
     return listing
 

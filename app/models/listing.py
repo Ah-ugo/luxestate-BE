@@ -45,6 +45,44 @@ class Location(BaseModel):
     neighborhood: Optional[str] = None
 
 
+class PriceDetailUpdate(BaseModel):
+    amount: Optional[float] = None
+    currency: Optional[str] = None
+    period: Optional[str] = None
+
+
+class LocationUpdate(BaseModel):
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    neighborhood: Optional[str] = None
+
+
+class ListingUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    listing_type: Optional[ListingType] = None
+    status: Optional[ListingStatus] = None
+    price: Optional[PriceDetailUpdate] = None
+    service_charge: Optional[PriceDetailUpdate] = None
+    bedrooms: Optional[int] = None
+    bathrooms: Optional[int] = None
+    toilets: Optional[int] = None
+    size_sqm: Optional[float] = None
+    location: Optional[LocationUpdate] = None
+    amenities: Optional[List[AmenityItem]] = None
+    features: Optional[List[str]] = None
+    is_featured: Optional[bool] = None
+    is_new: Optional[bool] = None
+    tags: Optional[List[str]] = None
+    agent_name: Optional[str] = None
+    agent_phone: Optional[str] = None
+    agent_image: Optional[str] = None
+
+
 class Listing(Document):
     title: str
     slug: Indexed(str, unique=True)

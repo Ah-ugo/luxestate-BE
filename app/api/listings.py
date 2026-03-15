@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Depends, Form
 from typing import Optional, List
-from app.models.listing import Listing, ListingType, ListingStatus
+from app.models.listing import Listing, ListingType, ListingStatus, ListingUpdate
 from app.services.cloudinary_service import upload_image, delete_image
 from app.services.listing_service import (
     get_listings, get_listing_by_slug, create_listing, 
@@ -200,11 +200,11 @@ async def add_listing(
 @router.put("/{listing_id}", response_model=Listing)
 async def edit_listing(
     listing_id: str,
-    listing_data: Listing,
+    listing_data: ListingUpdate,
     current_user: User = Depends(get_current_active_superuser)
 ):
     """Admin: Update an existing listing."""
-    return await update_listing(listing_id, listing_data)
+    return await update_listing(listing_id, listing_data.dict(exclude_unset=True))
 
 
 @router.delete("/{listing_id}", status_code=204)
